@@ -8,8 +8,18 @@ import (
 
 func Setup(app *fiber.App) {
 	app.Get("/helo", controllers.Hello)
-	app.Get("/users", controllers.GetCategory)
-	app.Get("/users/:id", controllers.GetCategoryById)
+	app.Get("/categories", controllers.GetCategory)
+	app.Get("/categories/:id", controllers.GetCategoryById)
 
-	app.Get("/products", controllers.AddProduct)
+	app.Post("/products", controllers.AddProduct)
+	app.Get("/products", controllers.GetProduct)
+
+	app.Post("/auth/register", controllers.Register)
+	app.Post("/auth/login", controllers.Login)
+	app.Get("/auth/logout", controllers.Logout)
+	app.Get("/auth/user", controllers.GetUser)
+
+	app.Get("/cart", controllers.GetCart)
+	app.Post("/cart", controllers.AddCart)
+
 }
