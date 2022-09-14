@@ -1,10 +1,11 @@
 package models
 
 type Product struct {
-	Id_product        int      `json:"id_product,omitempty"`
+	Id_product        int      `json:"id_product,omitempty" gorm:"primaryKey"`
 	Nama_product      string   `json:"nama_product,omitempty"`
 	Deskripsi_product string   `json:"deskripsi_product,omitempty"`
 	Gambar_product    string   `json:"gambar_product,omitempty"`
+	Harga_product     int      `json:"harga_product,omitempty"`
 	Url_product       string   `json:"url_product,omitempty"`
 	Status_product    bool     `json:"status_product,omitempty"`
 	Id_category       int      `json:"id_category,omitempty"`
