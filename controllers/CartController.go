@@ -74,20 +74,8 @@ func AddCart(c *fiber.Ctx) error {
 }
 
 func GetCart(c *fiber.Ctx) error {
-	cookie := c.Cookies("jwt")
-	token, err := jwt.ParseWithClaims(cookie, &jwt.StandardClaims{}, func(t *jwt.Token) (interface{}, error) {
-		return []byte(SecretKey), nil
-	})
+	err := utils.Auth(c)
 	if err != nil {
-		c.Status(fiber.StatusUnauthorized)
-		return c.JSON(fiber.Map{
-			"message": "unauthenticated",
-		})
-	}
-	claims := token.Claims.(*jwt.StandardClaims)
-	var user models.User
-	databases.DB.First(&user, claims.Issuer)
-	if user.Nama_user == "" {
 		c.Status(fiber.StatusUnauthorized)
 		return c.JSON(fiber.Map{
 			"message": "unauthenticated",
@@ -100,9 +88,83 @@ func GetCart(c *fiber.Ctx) error {
 		Joins("JOIN categories on categories.id_category = products.id_category").
 		Preload("Product.Category").
 		Find(&carts).Error
-	if err != nil {
+	if error != nil {
 		return fiber.NewError(fiber.StatusNotFound, error.Error())
 	}
 
 	return c.Status(fiber.StatusOK).JSON(&carts)
+}
+
+func DeleteCart(c *fiber.Ctx) error {
+	err := utils.Auth(c)
+	if err != nil {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "unauthenticated",
+		})
+	}
+
+	id, error := c.ParamsInt("id")
+	if error == nil {
+		var cart models.Cart
+		err := databases.DB.First(&cart, id).Error
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+
+		databases.DB.Delete(&cart)
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "Deleted",
+		})
+	}
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+		"message": "Error Parameter",
+	})
+}
+
+func EditCart(c *fiber.Ctx) error {
+	err := utils.Auth(c)
+	if err != nil {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "unauthenticated",
+		})
+	}
+
+	id, err := c.ParamsInt("id")
+	if err == nil {
+		request := new(requests.EditCartRequest)
+
+		if err := c.BodyParser(request); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": err.Error(),
+			})
+
+		}
+
+		errors := utils.Validate(*request)
+		if errors != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(errors)
+
+		}
+
+		var cart models.Cart
+		err := databases.DB.Preload("Product").First(&cart, id).Error
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+
+		jumlah, _ := request.Jumlah.Int64()
+		cart.Jumlah = int(jumlah)
+		cart.Total_harga = cart.Product.Harga_product * int(jumlah)
+
+		databases.DB.Save(&cart)
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "Updated",
+		})
+	}
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+		"message": "Error Parameter",
+	})
 }
