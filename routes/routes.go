@@ -21,5 +21,7 @@ func Setup(app *fiber.App) {
 
 	app.Get("/cart", controllers.GetCart)
 	app.Post("/cart", controllers.AddCart)
+	app.Delete("/cart/:id", controllers.DeleteCart)
+	app.Put("/cart/:id", controllers.EditCart)
 
 }
