@@ -26,7 +26,9 @@ func Register(c *fiber.Ctx) error {
 	}
 	errors := utils.Validate(*request)
 	if errors != nil {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(errors)
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"message": errors,
+		})
 
 	}
 	var user models.User
@@ -59,8 +61,9 @@ func Login(c *fiber.Ctx) error {
 	}
 	errors := utils.Validate(*request)
 	if errors != nil {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(errors)
-
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"message": errors,
+		})
 	}
 	var user models.User
 	databases.DB.Where("email_user = ?", request.Email_user).First(&user)
@@ -117,20 +120,55 @@ func Logout(c *fiber.Ctx) error {
 }
 
 func GetUser(c *fiber.Ctx) error {
-	cookie := c.Cookies("jwt")
-	token, err := jwt.ParseWithClaims(cookie, &jwt.StandardClaims{}, func(t *jwt.Token) (interface{}, error) {
-		return []byte(SecretKey), nil
-	})
+	user, err := utils.Auth(c)
 	if err != nil {
 		c.Status(fiber.StatusUnauthorized)
 		return c.JSON(fiber.Map{
 			"message": "unauthenticated",
 		})
 	}
-
-	claims := token.Claims.(*jwt.StandardClaims)
-	var user models.User
-	databases.DB.First(&user, claims.Issuer)
+	if user.Id_user == 0 {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "unauthenticated",
+		})
+	}
 
 	return c.Status(fiber.StatusOK).JSON(&user)
+}
+
+func EditProfil(c *fiber.Ctx) error {
+	user, err := utils.Auth(c)
+	if err != nil {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "unauthenticated",
+		})
+	}
+	if user.Id_user == 0 {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "unauthenticated",
+		})
+	}
+	request := new(requests.EditProfilRequest)
+	if err := c.BodyParser(request); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+	errors := utils.Validate(*request)
+	if errors != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":   &errors,
+			"message": "Data Tidak Sesuai",
+		})
+	}
+
+	user.Alamat_user = request.Alamat_user
+	databases.DB.Save(&user)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Berhasil Update",
+	})
 }
