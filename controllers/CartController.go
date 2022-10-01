@@ -7,24 +7,11 @@ import (
 	"go-server/utils"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v4"
 )
 
 func AddCart(c *fiber.Ctx) error {
-	cookie := c.Cookies("jwt")
-	token, err := jwt.ParseWithClaims(cookie, &jwt.StandardClaims{}, func(t *jwt.Token) (interface{}, error) {
-		return []byte(SecretKey), nil
-	})
+	user, err := utils.Auth(c)
 	if err != nil {
-		c.Status(fiber.StatusUnauthorized)
-		return c.JSON(fiber.Map{
-			"message": "unauthenticated",
-		})
-	}
-	claims := token.Claims.(*jwt.StandardClaims)
-	var user models.User
-	databases.DB.First(&user, claims.Issuer)
-	if user.Nama_user == "" {
 		c.Status(fiber.StatusUnauthorized)
 		return c.JSON(fiber.Map{
 			"message": "unauthenticated",
@@ -74,19 +61,18 @@ func AddCart(c *fiber.Ctx) error {
 }
 
 func GetCart(c *fiber.Ctx) error {
-	err := utils.Auth(c)
+	user, err := utils.Auth(c)
 	if err != nil {
 		c.Status(fiber.StatusUnauthorized)
 		return c.JSON(fiber.Map{
 			"message": "unauthenticated",
 		})
 	}
-
 	var carts []models.Cart
 
 	error := databases.DB.Joins("JOIN products on products.id_product = carts.id_product").
 		Joins("JOIN categories on categories.id_category = products.id_category").
-		Preload("Product.Category").
+		Preload("Product.Category").Where("id_user = ?", user.Id_user).
 		Find(&carts).Error
 	if error != nil {
 		return fiber.NewError(fiber.StatusNotFound, error.Error())
@@ -96,7 +82,7 @@ func GetCart(c *fiber.Ctx) error {
 }
 
 func DeleteCart(c *fiber.Ctx) error {
-	err := utils.Auth(c)
+	_, err := utils.Auth(c)
 	if err != nil {
 		c.Status(fiber.StatusUnauthorized)
 		return c.JSON(fiber.Map{
@@ -123,7 +109,7 @@ func DeleteCart(c *fiber.Ctx) error {
 }
 
 func EditCart(c *fiber.Ctx) error {
-	err := utils.Auth(c)
+	_, err := utils.Auth(c)
 	if err != nil {
 		c.Status(fiber.StatusUnauthorized)
 		return c.JSON(fiber.Map{
@@ -161,10 +147,47 @@ func EditCart(c *fiber.Ctx) error {
 		databases.DB.Save(&cart)
 
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"message": "Updated",
+			"message":     "Updated",
+			"total_harga": &cart.Total_harga,
 		})
 	}
 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 		"message": "Error Parameter",
 	})
+}
+
+func GetCartChecked(c *fiber.Ctx) error {
+	user, err := utils.Auth(c)
+	if err != nil {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "unauthenticated",
+		})
+	}
+
+	request := new(requests.CartCheckedRequest)
+	if err := c.BodyParser(request); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+
+	}
+	var carts []models.Cart
+	if len(request.Id_check) == 0 {
+		response := []string{}
+		return c.Status(fiber.StatusOK).JSON(response)
+	}
+	databases.DB.Select("id_cart", "total_harga").Where("id_user = ?", user.Id_user).Find(&carts, request.Id_check)
+	return c.Status(fiber.StatusOK).JSON(&carts)
+}
+
+func Test(c *fiber.Ctx) error {
+	user, err := utils.Auth(c)
+	if err != nil {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "unauthenticated",
+		})
+	}
+	return c.JSON(&user)
 }
