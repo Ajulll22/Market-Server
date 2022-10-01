@@ -10,19 +10,20 @@ import (
 
 const SecretKey = "secret"
 
-func Auth(c *fiber.Ctx) error {
+func Auth(c *fiber.Ctx) (models.User, error) {
 	cookie := c.Cookies("jwt")
+	var user models.User
 	token, err := jwt.ParseWithClaims(cookie, &jwt.StandardClaims{}, func(t *jwt.Token) (interface{}, error) {
 		return []byte(SecretKey), nil
 	})
 	if err != nil {
-		return err
+		return user, err
 	}
 	claims := token.Claims.(*jwt.StandardClaims)
-	var user models.User
+
 	error := databases.DB.First(&user, claims.Issuer).Error
 	if user.Nama_user == "" {
-		return error
+		return user, error
 	}
-	return nil
+	return user, nil
 }
