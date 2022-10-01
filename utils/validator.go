@@ -1,27 +1,38 @@
 package utils
 
 import (
+	"github.com/go-playground/locales/en"
+	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	enTranslations "github.com/go-playground/validator/v10/translations/en"
 )
 
 type ErrorResponse struct {
-	FailedField string
-	Tag         string
-	Value       string
+	Value string `json:"value,omitempty"`
 }
 
-func Validate(req interface{}) []*ErrorResponse {
-	var validate = validator.New()
-	var errors []*ErrorResponse
-	err := validate.Struct(req)
-	if err != nil {
-		for _, err := range err.(validator.ValidationErrors) {
-			var element ErrorResponse
-			element.FailedField = err.StructNamespace()
-			element.Tag = err.Tag()
-			element.Value = err.Param()
-			errors = append(errors, &element)
-		}
+func translateError(err error, trans ut.Translator) []string {
+	if err == nil {
+		return nil
+	}
+	var errors []string
+	validatorErrs := err.(validator.ValidationErrors)
+	for _, e := range validatorErrs {
+		element := e.Translate(trans)
+		errors = append(errors, element)
 	}
 	return errors
+}
+
+func Validate(req interface{}) []string {
+	validate := validator.New()
+	english := en.New()
+	uni := ut.New(english, english)
+	trans, _ := uni.GetTranslator("en")
+	_ = enTranslations.RegisterDefaultTranslations(validate, trans)
+
+	err := validate.Struct(req)
+	errs := translateError(err, trans)
+
+	return errs
 }
