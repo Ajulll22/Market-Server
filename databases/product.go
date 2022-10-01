@@ -2,7 +2,7 @@ package databases
 
 type Product struct {
 	Id_product        int    `gorm:"primaryKey;type:int(11)"`
-	Nama_product      string `gorm:"type:varchar(50)"`
+	Nama_product      string `gorm:"type:varchar(100)"`
 	Deskripsi_product string `gorm:"type:text"`
 	Gambar_product    string `gorm:"type:varchar(50)"`
 	Harga_product     int    `gorm:"type:int(50)"`
